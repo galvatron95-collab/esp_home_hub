@@ -60,14 +60,16 @@ This project is standalone. There is no shared runtime state, no shared codebase
 
 # SECTION 1 — VERSIONS AND DEPENDENCIES
 
-TBD. Populated when the project scaffolding lands.
+Pinned. Versions below are authoritative. Bumping any value requires a CLAUDE.md diff.
 
 | Item | Value |
 |---|---|
 | Target chip | ESP32 (original, not S3) |
-| ESP-IDF version | TBD |
-| esp-matter version | TBD |
-| `idf_component.yml` dependencies | TBD |
+| ESP-IDF version | v5.5.4 (installed at `C:\esp\v5.5.4\esp-idf\`) |
+| esp-matter version | `main` branch, pinned at SHA `4d21fe502057102f99370080fd2e7ffc9d39ec47` (2026-05-08), installed at `C:\esp\esp-matter\` |
+| Matter spec version | v1.6 (per esp-matter `main`) |
+| Matter device type | On/Off Light (cluster receives On/Off commands and drives the buzzer) |
+| `idf_component.yml` dependencies | TBD — populated when the project scaffolding lands |
 
 ---
 
@@ -81,7 +83,7 @@ This registry is authoritative. Every GPIO used by this project is listed here. 
 | UART0 TX | 1 | output | Default serial console. Reserved. |
 | UART0 RX | 3 | input | Default serial console. Reserved. |
 | SPI flash | 6–11 | — | Internal flash bus. Do not use. |
-| Buzzer + | TBD | output | Active buzzer. Polarity verified before commit. |
+| Buzzer + | 23 | output | Active buzzer. Active-high: GPIO HIGH = beep, GPIO LOW = silent. Default LOW at init. |
 
 ---
 
