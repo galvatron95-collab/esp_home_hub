@@ -158,6 +158,10 @@ The operator relays the intent and diff to a separate validator chat. The valida
 
 Single-file diffs are the default. Multi-file diffs require explicit operator approval before drafting. CVC operating details are in `docs/CVC_INSTRUCTIONS.md`; validator operating details are in `docs/VALIDATOR_INSTRUCTIONS.md`.
 
+## Pre-diff sanity check
+
+Before drafting any diff that creates a new file, CVC must first verify the file does not already exist (e.g. via `git ls-files <path>` or `cat <path>`). A "create new file" diff whose target is already tracked is a wrong-shape diff and must be withdrawn rather than applied. The check is cheap; the cost of a wrong-shape diff is wasted validator review and potential history confusion.
+
 ---
 
 # SECTION 8 — REFUSAL LIST
