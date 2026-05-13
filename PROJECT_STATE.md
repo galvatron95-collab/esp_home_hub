@@ -6,7 +6,7 @@
 
 ## In progress
 
-- Project scaffolding: ESP-IDF project structure, esp-matter dependency, hello-world Matter device commissioning into Google Home.
+- Project scaffolding: ESP-IDF project structure, esp-matter dependency, hello-world Matter device commissioning into Google Home. Toolchain side unblocked on WSL Ubuntu 22.04 with Python 3.11 — `install.sh --no-host-tool` runs clean against the §1-pinned esp-matter (main @ `4d21fe5`); `idf.py build` not yet re-attempted on this combination.
 
 ## Blocked / deferred
 
