@@ -10,6 +10,7 @@
 #include <esp_log.h>
 #include <nvs_flash.h>
 
+#include <esp_wifi.h>
 #include <esp_matter.h>
 #include <esp_matter_console.h>
 
@@ -151,6 +152,13 @@ extern "C" void app_main()
     /* Matter start */
     err = esp_matter::start(app_event_cb);
     ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "Failed to start Matter, err:%d", err));
+
+    /* Disable WiFi modem sleep per CLAUDE.md §3 (WIFI_PS_NONE; §8.9 forbids
+     * removing or weakening this). Set after esp_matter::start() because the
+     * Matter stack initializes WiFi during start and earlier calls would be
+     * overwritten. */
+    err = esp_wifi_set_ps(WIFI_PS_NONE);
+    ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "Failed to set WIFI_PS_NONE, err:%d", err));
 
 #if CONFIG_ENABLE_CHIP_SHELL
     esp_matter::console::factoryreset_register_commands();
