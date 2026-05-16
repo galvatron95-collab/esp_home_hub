@@ -1,6 +1,2 @@
-build/
-sdkconfig
-sdkconfig.old
-managed_components/
-dependencies.lock
-main/secrets.h
+# ESPHome secrets — never commit.
+esphome/secrets.yaml
