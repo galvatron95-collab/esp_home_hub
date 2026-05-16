@@ -13,7 +13,21 @@
 
 ## In progress
 
-(Empty.)
+- Google Nest Doorbell (GWX3T) event ingress into HA. Prerequisite steps,
+  in order, all operator-side per refusal #5:
+    1. Register for the Google Device Access program (one-time US$5
+       payment) at `console.nest.google.com/device-access`.
+    2. In Google Cloud Console: enable the Cloud Pub/Sub API, create a
+       Pub/Sub topic and subscription, create OAuth client credentials
+       (Web application type) per HA's Nest integration docs.
+    3. Add the Nest integration in HA (Settings → Devices & services →
+       Add integration → Nest), paste the OAuth credentials, complete the
+       Google sign-in flow.
+    4. Confirm doorbell events (motion, person, chime) appear in HA's
+       event log when triggered at the doorbell.
+    5. Once verified, CVC drafts a §5 module-contract diff describing
+       which event types this project consumes and how they map to HA
+       entities that the buzzer automation will trigger on.
 
 ## Blocked / deferred
 

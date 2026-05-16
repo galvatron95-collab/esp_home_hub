@@ -27,8 +27,14 @@ A doorbell device built on an ESP32 running ESPHome, controlled by a self-hosted
 Home Assistant OS instance on the LAN. The ESP32 exposes the buzzer as a
 `switch` entity. When HA commands the switch on, a GPIO drives an active buzzer
 HIGH and it beeps; when commanded off, GPIO goes LOW and the buzzer is silent.
-The trigger is an HA automation (e.g. a future Ring or motion integration on
-the HA side); there is no physical button on this device in v1.
+The trigger is an HA automation that fires on doorbell events from a Google
+Nest Doorbell (wired, 2nd gen). Events reach HA via the official HA Nest
+integration, which subscribes to Google's Cloud Pub/Sub. There is no physical
+button on the ESP32 device in v1.
+
+The Nest event path is read-only and inbound only (Google → HA → ESP32). The
+ESP32-to-HA command path remains LAN-only. See §8 refusal #7 for the precise
+carve-out wording.
 
 The earlier esp-matter / Google Home design is retired and lives under
 `archive/`. See `archive/README.md` for why.
@@ -150,6 +156,15 @@ ota_password: "..."         # used by ESPHome's built-in OTA component
 
 Additional keys are added as device YAMLs require them.
 
+## Google Cloud credentials (Nest integration)
+
+The HA Nest integration requires Google Cloud OAuth client credentials and a
+Pub/Sub subscription. These credentials live inside HA's configuration store
+(not in this repo) and are entered into HA's UI by the operator during
+integration adoption. They are not committed, not logged, and not referenced
+from any YAML in this repo. CVC does not see these values at any point;
+per refusal #5, CVC documents the setup steps but does not execute them.
+
 ## Secrets rules
 
 1. `esphome/secrets.yaml` is listed in `.gitignore` and is never committed.
@@ -196,6 +211,12 @@ steps are operator tribal knowledge and CVC may ask about them.
 Empty. Module contracts are added per device YAML as devices land. Each
 contract covers: purpose, entities exposed to HA, GPIO usage, allowed/forbidden
 operations.
+
+The Google Nest event ingress is a logical module too — it is HA-side
+configuration, not a device in this repo, but its behaviour (which events
+reach HA, what HA entities they materialise as) is contract-shaped and gets
+a stub here once the operator has completed the Google Cloud setup and the
+integration is adopted.
 
 ---
 
@@ -264,8 +285,13 @@ specific item and ask whether to proceed.
    the operator to apply manually.
 6. Logging or otherwise disclosing values from `secrets.yaml`, including
    partial disclosure.
-7. Adding cloud services. The architecture is local-network only: ESP32 ↔ HA
-   over the LAN. No external brokers, no vendor clouds.
+7. Adding cloud services beyond the single Google Nest event ingress (HA Nest
+   integration via Google Device Access and Cloud Pub/Sub, for the Nest
+   Doorbell GWX3T). The architecture is local-network-only for command paths:
+   ESP32 ↔ HA over the LAN. No external brokers in the command path, no
+   vendor clouds for device control. The Nest event ingress is read-only and
+   inbound only — events flow Google → HA; no HA → Google traffic is
+   permitted as part of this carve-out.
 8. Updating `PROJECT_STATE.md` outside the §6 governance process.
 9. Declaring something "working" in `PROJECT_STATE.md` without explicit
    operator verification.
