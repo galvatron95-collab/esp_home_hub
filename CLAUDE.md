@@ -102,9 +102,9 @@ CLAUDE.md diff.
 | Item | Value |
 |---|---|
 | Target chip | ESP32 (original, not S3) |
-| Firmware framework | ESPHome (version pinned per-device in YAML `esphome:` block; specific version TBD when first YAML lands) |
-| Host OS | Home Assistant OS (version recorded in `PROJECT_STATE.md` when first verified) |
-| ESPHome add-on | Official `ESPHome` add-on running inside HA OS (version recorded in `PROJECT_STATE.md` when first verified) |
+| Firmware framework | ESPHome 2026.4.5 (first verified 2026-05-16; floor enforced per-device via YAML `min_version`, currently `2025.4.0`) |
+| Host OS | Home Assistant OS 17.3 (first verified 2026-05-16) |
+| ESPHome add-on | Official `ESPHome` add-on, version 2026.4.5 (first verified 2026-05-16) |
 | HA API encryption | Required — every device YAML must include an `api:` block with an `encryption: key:` value sourced from `esphome/secrets.yaml` |
 
 ---

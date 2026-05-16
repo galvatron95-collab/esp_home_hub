@@ -2,19 +2,18 @@
 
 ## Working
 
-(Empty — project not yet started.)
+- Doorbell buzzer ESPHome device. ESP32 (board id `esp32dev`) running
+  ESPHome firmware 2026.4.5, active buzzer on GPIO 23, exposed to the
+  local HA instance as `switch.buzzer`. Survives HA-side switch toggles
+  with sub-second latency per the §0 quality bar. WiFi `power_save_mode:
+  NONE` per refusal #10, encrypted native API per refusal #11.
+  Deployment path: this repo's `esphome/` is cloned to
+  `/config/esp_home_hub/` on the HA host and symlinked to
+  `/config/esphome/`.
 
 ## In progress
 
-- First ESPHome buzzer device, adopted into the local HA instance. Prerequisite steps, in order:
-    1. Confirm HA OS version and ESPHome add-on version (record in §1 of `CLAUDE.md` and here under "Last verified deploy" once a deploy lands).
-    2. Install the SSH or Studio Code Server add-on on the HA host (operator-side, one-time).
-    3. Clone this repo's `esphome/` subdirectory to `/config/esphome/` on the HA host (operator-side, one-time).
-    4. Write the first device YAML at `esphome/doorbell-buzzer.yaml` (CVC, via §7 diff).
-    5. Create `esphome/secrets.yaml` on the operator workstation from the schema in `CLAUDE.md` §3 (operator; never committed) and ensure the HA-side clone has its own copy.
-    6. Operator pushes, pulls on HA, clicks Install in the ESPHome dashboard, flashes the ESP32 over USB for first adoption.
-    7. Confirm the device adopts into HA and the buzzer responds to switch toggles within the §0 quality bar.
-  All seven steps unverified at time of writing — the project just pivoted off esp-matter and onto this architecture; no ESPHome firmware has been built or flashed yet.
+(Empty.)
 
 ## Blocked / deferred
 
@@ -27,4 +26,7 @@
 
 ## Last verified deploy
 
-(None yet — no ESPHome firmware has been deployed.)
+- 2026-05-16: `doorbell-buzzer.yaml` compiled and flashed via USB; device
+  adopted into HA, `switch.buzzer` toggles confirmed.
+- Versions verified: HA OS 17.3, ESPHome add-on 2026.4.5, ESPHome
+  framework 2026.4.5.
