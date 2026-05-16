@@ -1,0 +1,40 @@
+# Doorbell buzzer — first ESPHome device for this project.
+# Hardware: ESP32 (original), active buzzer on GPIO 23 (CLAUDE.md §2).
+# Exposed to HA as a single switch entity. ON = buzzer beeps, OFF = silent.
+
+esphome:
+  name: doorbell-buzzer
+  friendly_name: Doorbell Buzzer
+  min_version: 2025.4.0
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+# Encrypted native API to Home Assistant. Required by CLAUDE.md refusal #11.
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+# OTA via ESPHome's native mechanism. After first USB flash, subsequent
+# deploys reach the device over the LAN.
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Modem sleep disabled per CLAUDE.md refusal #10.
+  power_save_mode: NONE
+
+# Buzzer output. Active-high per CLAUDE.md §2; default LOW at boot via
+# restore_mode so a power cycle never leaves the buzzer beeping.
+switch:
+  - platform: gpio
+    name: Buzzer
+    pin: GPIO23
+    restore_mode: ALWAYS_OFF
