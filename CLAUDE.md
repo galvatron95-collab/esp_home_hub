@@ -226,6 +226,46 @@ Empty. Module contracts are added per device YAML as devices land. Each
 contract covers: purpose, entities exposed to HA, GPIO usage, allowed/forbidden
 operations.
 
+## Module: Audio output (doorbell chime)
+
+**Purpose.** Produce the audible doorbell chime when HA's DoorBuzzer
+automation triggers it. Replaces the original active-buzzer `switch.buzzer`
+per refusal #1's narrow carve-out.
+
+**Defined in.** `esphome/doorbell-buzzer.yaml`.
+
+**Hardware.** Passive piezo on GPIO 23 (CLAUDE.md §2). Driven by an
+`output: ledc` PWM channel which `rtttl:` uses as its tone source.
+
+**Entity exposed to HA.** A single `button` entity, name "Play Chime"
+(default object id `button.doorbell_buzzer_play_chime` — HA composes the
+id from device name + entity name; operator-confirmed at adoption).
+Pressing the button plays one chime; the button has no state.
+
+**Chime.** A single RTTTL string compiled into the firmware:
+`Ding:d=4,o=5,b=180:e,c` — two notes (E5, C5) at 180 bpm, ~700 ms total.
+This is the v1 chime. Changing the RTTTL string is a YAML edit + flash,
+not a contract change. Adding a *second distinct* chime requires a
+refusal #1 amendment per its current wording ("single chime melody").
+
+**Allowed operations.** Press the button via the HA native API. Edit the
+RTTTL string in YAML and reflash.
+
+**Forbidden operations.** Driving GPIO 23 as a plain digital output
+(would conflict with the ledc PWM and stop the rtttl component working).
+Exposing the piezo as a `switch` entity (would re-introduce the old
+active-buzzer shape; the carve-out is for `rtttl`-driven chime, not
+arbitrary tones). Adding a second `button` or `switch` for an alternate
+chime (multiple-chime scope drift).
+
+**HA-side automation transition.** The DoorBuzzer automation currently
+runs Turn on `switch.buzzer` → Wait 5s → Turn off `switch.buzzer`. After
+this diff lands and the device is reflashed, `switch.buzzer` no longer
+exists. The operator updates the automation in HA's UI: replace the three
+actions with a single "Press button" action targeting the new
+`button.doorbell_buzzer_play_chime` entity. Delete the Wait and the Turn
+off. Per refusal #5 this is operator-side; CVC documents the shape.
+
 ## Module: Google Nest event ingress
 
 **Purpose.** Surface doorbell-press events from the Google Nest Doorbell

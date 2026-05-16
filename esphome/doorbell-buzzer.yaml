@@ -1,6 +1,9 @@
-# Doorbell buzzer — first ESPHome device for this project.
-# Hardware: ESP32 (original), active buzzer on GPIO 23 (CLAUDE.md §2).
-# Exposed to HA as a single switch entity. ON = buzzer beeps, OFF = silent.
+# Doorbell audio output — ESP32 + passive piezo on GPIO 23.
+# Hardware per CLAUDE.md §2. Driven by ESPHome rtttl output;
+# exposed to HA as a single button entity (button.play_chime) that
+# plays a fixed ding-dong melody when pressed. Replaces the original
+# active-buzzer `switch.buzzer` per refusal #1's narrow carve-out.
+# Module contract: CLAUDE.md §5 "Audio output (doorbell chime)".
 
 esphome:
   name: doorbell-buzzer
@@ -31,10 +34,23 @@ wifi:
   # Modem sleep disabled per CLAUDE.md refusal #10.
   power_save_mode: NONE
 
-# Buzzer output. Active-high per CLAUDE.md §2; default LOW at boot via
-# restore_mode so a power cycle never leaves the buzzer beeping.
-switch:
-  - platform: gpio
-    name: Buzzer
+# ESP32 hardware PWM channel on GPIO 23 — required by the rtttl
+# component to generate audio tones on the passive piezo.
+output:
+  - platform: ledc
+    id: rtttl_out
     pin: GPIO23
-    restore_mode: ALWAYS_OFF
+
+# RTTTL tone player. Drives the ledc output above. No state to
+# restore at boot — silent at boot is the natural rest state of a
+# passive piezo with the PWM channel idle.
+rtttl:
+  output: rtttl_out
+
+# HA-facing entity. Pressing this button plays the single v1 chime
+# (single-chime constraint per CLAUDE.md refusal #1).
+button:
+  - platform: template
+    name: Play Chime
+    on_press:
+      - rtttl.play: "Ding:d=4,o=5,b=180:e,c"
