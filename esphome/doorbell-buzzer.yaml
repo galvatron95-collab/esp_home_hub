@@ -53,4 +53,4 @@ button:
   - platform: template
     name: Play Chime
     on_press:
-      - rtttl.play: "Ding:d=4,o=5,b=180:e,c"
+      - rtttl.play: "Ding:d=4,o=7,b=180:e,c"
