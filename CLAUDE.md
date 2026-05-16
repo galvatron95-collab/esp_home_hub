@@ -59,8 +59,15 @@ v1 ignores them.
 
 ## Quality bar for v1
 
-- **Latency:** buzzer responds within 1 second of the HA switch command being
-  issued.
+- **Latency, command path (ESP32 ↔ HA, LAN):** buzzer responds within 1
+  second of HA issuing the `switch.buzzer` ON command. This is the
+  latency the project controls.
+- **Latency, trigger ingress (Google Nest event → HA):** bounded by
+  upstream Google Pub/Sub delivery; observed ~8-10 seconds end-to-end
+  from doorbell press to buzzer beep. This is not a project-controlled
+  latency and is not a quality-bar miss — the cloud path is the cost of
+  refusal #7's carve-out. See the latency paragraph in §5's "Google Nest
+  event ingress" module contract for the reasoning.
 - **Reliability:** the device survives WiFi outages — when WiFi returns, the
   ESPHome native API reconnects to HA without re-adoption.
 - **Persistence:** HA adoption survives power cycles on both ends.
@@ -212,11 +219,47 @@ Empty. Module contracts are added per device YAML as devices land. Each
 contract covers: purpose, entities exposed to HA, GPIO usage, allowed/forbidden
 operations.
 
-The Google Nest event ingress is a logical module too — it is HA-side
-configuration, not a device in this repo, but its behaviour (which events
-reach HA, what HA entities they materialise as) is contract-shaped and gets
-a stub here once the operator has completed the Google Cloud setup and the
-integration is adopted.
+## Module: Google Nest event ingress
+
+**Purpose.** Surface doorbell-press events from the Google Nest Doorbell
+GWX3T into Home Assistant so an HA automation can drive `switch.buzzer`
+(the ESPHome device defined in `esphome/doorbell-buzzer.yaml`).
+
+**Source.** The HA Nest integration (Google Device Access + Cloud Pub/Sub),
+adopted into HA per `PROJECT_STATE.md` "Last verified deploy". Permitted
+under §8 refusal #7's narrow carve-out; see that refusal for scope.
+
+**Events consumed.** One `nest_event` type reaches this project's
+automation: `doorbell_chime` — physical button press at the doorbell.
+
+**Events ignored in v1.** `camera_person`, `camera_motion`, `camera_sound`,
+and any other `nest_event` type the integration may surface. `camera_person`
+was considered as a second trigger during v1 design but dropped before the
+automation landed — its noise profile (fires for delivery drivers, passing
+pedestrians) made the v1 use case worse, not better. Adding it back later
+is a contract amendment, not a bug.
+
+**HA device.** The Nest doorbell registers in HA as a single device with an
+HA-internal device id, referred to here as `<NEST_DOORBELL_DEVICE_ID>`.
+Automations filter on this id to avoid triggering on any future Nest device
+added to the carve-out. The operator recovers the actual id from HA's
+Devices & services UI when wiring the automation; it is not committed to
+this repo because it is install-specific (changes on HA rebuild/restore)
+and because it characterises the home install in the §3-spirit sense.
+
+**Automation contract.** A single HA automation (lives in HA's Automations
+UI, not in this repo, per refusal #5) fires on the consumed event from
+the device above, sets `switch.buzzer` ON, waits 5 seconds, sets it OFF.
+No debounce, no cooldown, no notification side-effects in v1.
+
+**Latency expectation.** End-to-end (doorbell button press → buzzer beep)
+is bounded by Google Pub/Sub delivery time, observed at ~8-10 seconds
+during first-verify. This exceeds the §0 command-path latency bar of 1
+second by design — see §0's separated ingress-latency clause. The 1-second
+bar applies only after HA issues the switch command; it does not apply to
+the cloud event hop. Future-CVC should not treat this latency as a bug to
+fix at the ESPHome or HA-automation layer; the latency is inherent to
+Google's cloud and is the cost of refusal #7's carve-out.
 
 ---
 

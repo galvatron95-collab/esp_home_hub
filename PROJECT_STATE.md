@@ -10,24 +10,16 @@
   Deployment path: this repo's `esphome/` is cloned to
   `/config/esp_home_hub/` on the HA host and symlinked to
   `/config/esphome/`.
+- Google Nest doorbell → buzzer end-to-end. HA Nest integration adopted;
+  HA automation (operator-authored in HA UI per §5 module contract)
+  fires on `doorbell_chime` from the Nest doorbell device, drives
+  `switch.buzzer` ON for 5 seconds, OFF. Verified by pressing the
+  physical doorbell button and hearing the buzzer beep for the expected
+  duration.
 
 ## In progress
 
-- Google Nest Doorbell (GWX3T) event ingress into HA. Prerequisite steps,
-  in order, all operator-side per refusal #5:
-    1. Register for the Google Device Access program (one-time US$5
-       payment) at `console.nest.google.com/device-access`.
-    2. In Google Cloud Console: enable the Cloud Pub/Sub API, create a
-       Pub/Sub topic and subscription, create OAuth client credentials
-       (Web application type) per HA's Nest integration docs.
-    3. Add the Nest integration in HA (Settings → Devices & services →
-       Add integration → Nest), paste the OAuth credentials, complete the
-       Google sign-in flow.
-    4. Confirm doorbell events (motion, person, chime) appear in HA's
-       event log when triggered at the doorbell.
-    5. Once verified, CVC drafts a §5 module-contract diff describing
-       which event types this project consumes and how they map to HA
-       entities that the buzzer automation will trigger on.
+(Empty.)
 
 ## Blocked / deferred
 
@@ -42,5 +34,8 @@
 
 - 2026-05-16: `doorbell-buzzer.yaml` compiled and flashed via USB; device
   adopted into HA, `switch.buzzer` toggles confirmed.
+- 2026-05-16: Nest event ingress + buzzer automation wired end-to-end.
+  Doorbell button press → ~10s ingress latency → 5-second buzz, then
+  silent. Verified by operator at the physical doorbell.
 - Versions verified: HA OS 17.3, ESPHome add-on 2026.4.5, ESPHome
   framework 2026.4.5.
