@@ -19,7 +19,19 @@
 
 ## In progress
 
-(Empty.)
+- Swap doorbell audio output from active buzzer to passive piezo on
+  GPIO 23, driven by ESPHome `rtttl`. Driven by §0's loudness
+  observation, scope-admitted by §8 refusal #1's narrow carve-out for
+  a single audio output. Steps:
+    1. Operator physically swaps the active buzzer for the passive
+       piezo on GPIO 23 (refusal #5: hardware work, not CVC's).
+    2. CVC drafts the `esphome/doorbell-buzzer.yaml` swap (active-high
+       `switch` platform → `rtttl` output + a switch or button entity
+       HA's existing automation can trigger). Single chime melody only,
+       per refusal #1.
+    3. Operator flashes, presses the doorbell, confirms the new chime
+       sounds and is at an acceptable volume. CVC then promotes via a
+       PROJECT_STATE.md / §5 module-contract diff.
 
 ## Blocked / deferred
 

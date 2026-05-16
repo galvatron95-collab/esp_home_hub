@@ -57,6 +57,13 @@ OTA is provided by ESPHome's built-in mechanism but is not a v1 feature target
 — it is a property of the toolchain. Those deferred items exist in the kit;
 v1 ignores them.
 
+v1 originally used an active buzzer on GPIO 23. The operator observed in
+daily use that the buzzer is unpleasantly loud with no volume control —
+a real quality issue, not aesthetics. The v1 hardware is being swapped
+from active buzzer to passive piezo on the same pin, driven by ESPHome's
+`rtttl` output for a softer chime. See §8 refusal #1 for the precise
+carve-out wording.
+
 ## Quality bar for v1
 
 - **Latency, command path (ESP32 ↔ HA, LAN):** buzzer responds within 1
@@ -134,7 +141,7 @@ this table in the same diff that uses it.
 | UART0 TX | 1 | output | Default serial console. Reserved. |
 | UART0 RX | 3 | input | Default serial console. Reserved. |
 | SPI flash | 6–11 | — | Internal flash bus. Do not use. |
-| Buzzer + | 23 | output | Active buzzer. Active-high: GPIO HIGH = beep, GPIO LOW = silent. Default LOW at boot (ESPHome `restore_mode: ALWAYS_OFF`). |
+| Audio output + | 23 | output | Passive piezo, driven by ESPHome `rtttl` output. Idle LOW. Replaces the original active buzzer; same pin, same direction, different drive pattern. Active buzzer wiring (GPIO HIGH = beep) no longer applies. |
 
 ---
 
@@ -319,7 +326,13 @@ current session. Refusing is the correct response — when refusing, name the
 specific item and ask whether to proceed.
 
 1. Adding features beyond v1 scope (sensors, on-device button input,
-   multi-tone chimes, battery monitoring, OLED display, multiple buzzers).
+   multi-tone audio beyond a single doorbell-chime output, battery
+   monitoring, OLED display, multiple audio outputs). The v1 audio output
+   is a single passive piezo on GPIO 23 driven by ESPHome's `rtttl`
+   output, replacing the original active buzzer. A single chime melody
+   (mono, RTTTL-formatted) is in-scope; multiple distinct chimes,
+   sampled audio, or any second audio output requires a fresh refusal
+   #1 amendment.
 2. Driving any GPIO not in the pin registry, or any GPIO listed as reserved.
 3. Multi-file diffs without explicit operator approval.
 4. Modifying any file under `archive/`.
