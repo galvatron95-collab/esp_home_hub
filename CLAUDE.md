@@ -73,6 +73,21 @@ but insufficient for serious data work; any future use case requiring
 real precision should reach for a BME280 or similar, not extend the
 DHT11. See §8 refusal #1 for the precise carve-out wording.
 
+An LM393 digital-output LDR (light-dependent resistor) module is also
+being added to the doorbell device on GPIO 13. Use case is data
+gathering — instrument the doorbell location's ambient light to learn
+what range of values shows up over time, before designing any
+light-driven automations that would need threshold knowledge to be
+useful. The digital output gives binary dark/not-dark transitions
+(threshold set by the module's onboard trim pot), not absolute lux
+readings. This is the fourth refusal #1 carve-out in the project and
+the framing is honestly weaker than past admissions (no concrete
+downstream behaviour at admission time), so the carve-out includes a
+reconsider point: if no concrete automation use case has emerged from
+the data within 90 days of admission (by 2026-08-15), the sensor's
+contract place is reconsidered. The reconsider doesn't force removal —
+just a check-in. See §8 refusal #1 for the precise carve-out wording.
+
 ## Quality bar for v1
 
 - **Latency, command path (ESP32 ↔ HA, LAN):** buzzer responds within 1
@@ -151,6 +166,7 @@ this table in the same diff that uses it.
 | UART0 RX | 3 | input | Default serial console. Reserved. |
 | SPI flash | 6–11 | — | Internal flash bus. Do not use. |
 | DHT11 DATA | 32 | input | Single-wire data line to DHT11 temp/humidity sensor. Internal pull-up enabled by ESPHome's `dht` component. (Moved from GPIO 4 during bring-up debugging; the underlying issue was wiring, not pin choice, but GPIO 32 was the pin in place once the sensor started reporting.) |
+| LDR DO | 13 | input | Digital output line from LM393 LDR module. HIGH = light above the module's trim-pot threshold; LOW = below. |
 | Audio output + | 23 | output | Passive piezo, driven by ESPHome `rtttl` output. Idle LOW. Replaces the original active buzzer; same pin, same direction, different drive pattern. Active buzzer wiring (GPIO HIGH = beep) no longer applies. |
 
 ---
@@ -421,11 +437,15 @@ specific item and ask whether to proceed.
 
 1. Adding features beyond v1 scope (sensors, on-device button input,
    multi-tone audio beyond a single doorbell-chime output, battery
-   monitoring, OLED display, multiple audio outputs). One sensor — a
-   DHT11 temp/humidity sensor on the doorbell-buzzer device, GPIO 4 —
-   is admitted as a narrow learning-scope exception; see §0 for the
-   motivation. All other sensors (PIR, mmWave, LDR, obstacle avoidance,
-   air quality, etc.) remain refused. The v1 audio output
+   monitoring, OLED display, multiple audio outputs). Two sensors are
+   admitted on the doorbell-buzzer device as narrow exceptions, each
+   with §0 motivation: a DHT11 temp/humidity sensor on GPIO 32 (was
+   admitted on GPIO 4; see commit history), and an LM393 digital-output
+   LDR on GPIO 13 (instrument-to-inform-future-automation framing with
+   a 90-day reconsider point — see §0). All other sensors (PIR, mmWave,
+   analog LDR / BH1750, obstacle avoidance, air quality, etc.) remain
+   refused; adding more is a fresh refusal #1 amendment per the
+   cumulative-drift discipline. The v1 audio output
    is a single passive piezo on GPIO 23 driven by ESPHome's `rtttl`
    output, replacing the original active buzzer. A single chime melody
    (mono, RTTTL-formatted) is in-scope; multiple distinct chimes,

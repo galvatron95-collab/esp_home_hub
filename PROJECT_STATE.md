@@ -40,7 +40,23 @@
 
 ## In progress
 
-(Empty.)
+- Add LM393 digital-output LDR to the doorbell-buzzer device, GPIO 13.
+  Data-gathering use case (instrument-to-inform-future-automation),
+  scope-admitted by §8 refusal #1's narrow carve-out with a 90-day
+  reconsider point (by 2026-08-15). Steps:
+    1. Operator physically wires the LDR module (VCC → 3.3V or 5V
+       rail, GND → GND, DO → GPIO 13). Refusal #5: hardware work,
+       not CVC's.
+    2. CVC drafts the `esphome/doorbell-buzzer.yaml` change adding a
+       `binary_sensor.gpio` for GPIO 13 and a §5 module-contract entry
+       "Light sensor (LM393 LDR)" following the Allowed/Forbidden
+       template.
+    3. Operator flashes, confirms the new `binary_sensor.*` entity
+       appears in HA and toggles correctly when the LDR is covered /
+       exposed to light. CVC then promotes via a PROJECT_STATE.md /
+       §5 truth-up diff (same pattern as the DHT11 closeout).
+    4. Reconsider check-in by 2026-08-15: if no automation use case
+       has emerged, evaluate whether the sensor earns its contract place.
 
 ## Blocked / deferred
 
@@ -49,7 +65,7 @@
 - Physical doorbell button reader on the device — deferred to v2 (the trigger comes from HA automations, not from a button on this device).
 - OLED status display (kit-included) — deferred to v2; kept in mind for later.
 - PIR motion sensor (kit-included) — deferred to v2; the trigger is an HA-side automation, not local motion.
-- Other kit sensors (photoresistor, obstacle avoidance) — out of scope for v1. (DHT11 was previously listed here; it has been admitted via refusal #1 carve-out and is tracked under In progress.)
+- Other kit sensors (obstacle avoidance) — out of scope for v1. (DHT11 and the LM393 LDR were previously listed here; both have been admitted via refusal #1 carve-outs.)
 
 ## Last verified deploy
 
