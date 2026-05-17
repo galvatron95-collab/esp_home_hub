@@ -240,10 +240,14 @@ per refusal #1's narrow carve-out.
 **Entity exposed to HA.** A single `button` entity, name "Play Chime"
 (default object id `button.doorbell_buzzer_play_chime` — HA composes the
 id from device name + entity name; operator-confirmed at adoption).
+Confirmed at adoption 2026-05-16: `button.doorbell_buzzer_play_chime`.
 Pressing the button plays one chime; the button has no state.
 
 **Chime.** A single RTTTL string compiled into the firmware:
-`Ding:d=4,o=5,b=180:e,c` — two notes (E5, C5) at 180 bpm, ~700 ms total.
+`Ding:d=4,o=7,b=180:e,c` — two notes (E7, C7) at 180 bpm, ~700 ms total.
+Octave 7 (rather than the original octave 5) was chosen to bring the
+notes closer to the passive piezo's resonant frequency, which made the
+chime audibly louder for the operator's mounting environment.
 This is the v1 chime. Changing the RTTTL string is a YAML edit + flash,
 not a contract change. Adding a *second distinct* chime requires a
 refusal #1 amendment per its current wording ("single chime melody").
@@ -259,12 +263,16 @@ arbitrary tones). Adding a second `button` or `switch` for an alternate
 chime (multiple-chime scope drift).
 
 **HA-side automation transition.** The DoorBuzzer automation currently
-runs Turn on `switch.buzzer` → Wait 5s → Turn off `switch.buzzer`. After
-this diff lands and the device is reflashed, `switch.buzzer` no longer
-exists. The operator updates the automation in HA's UI: replace the three
-actions with a single "Press button" action targeting the new
-`button.doorbell_buzzer_play_chime` entity. Delete the Wait and the Turn
-off. Per refusal #5 this is operator-side; CVC documents the shape.
+runs as five "Press button" actions targeting
+`button.doorbell_buzzer_play_chime` with a 1-second wait between each,
+producing ~5 seconds of repeated chimes per doorbell trigger. The
+5×1s shape was chosen after testing because a single press (~700 ms)
+is too short to reliably register as "the doorbell rang." Changing the
+press count or wait time is an HA-UI edit; the contract value here is
+the authoritative source — drift between the two should resolve by
+updating this section, not by leaving them out of sync. The earlier
+pre-rtttl automation (Turn on `switch.buzzer` → Wait → Turn off) is
+retired; `switch.buzzer` no longer exists.
 
 ## Module: Google Nest event ingress
 
