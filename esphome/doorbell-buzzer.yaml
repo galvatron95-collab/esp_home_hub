@@ -74,3 +74,15 @@ sensor:
       filters:
         - round: 0
     update_interval: 60s
+
+# LM393 LDR digital output on GPIO 21 (CLAUDE.md §2). Data-gathering
+# carve-out per refusal #1 with a 90-day reconsider point — see §0
+# motivation and §5 "Light sensor (LM393 LDR)" module contract. The
+# binary signal reflects the module's onboard trim-pot threshold, not
+# absolute light level; do not interpret as calibrated lux.
+binary_sensor:
+  - platform: gpio
+    name: Light
+    pin:
+      number: GPIO21
+      mode: INPUT

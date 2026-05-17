@@ -74,7 +74,7 @@ real precision should reach for a BME280 or similar, not extend the
 DHT11. See §8 refusal #1 for the precise carve-out wording.
 
 An LM393 digital-output LDR (light-dependent resistor) module is also
-being added to the doorbell device on GPIO 13. Use case is data
+being added to the doorbell device on GPIO 21. Use case is data
 gathering — instrument the doorbell location's ambient light to learn
 what range of values shows up over time, before designing any
 light-driven automations that would need threshold knowledge to be
@@ -166,7 +166,7 @@ this table in the same diff that uses it.
 | UART0 RX | 3 | input | Default serial console. Reserved. |
 | SPI flash | 6–11 | — | Internal flash bus. Do not use. |
 | DHT11 DATA | 32 | input | Single-wire data line to DHT11 temp/humidity sensor. Internal pull-up enabled by ESPHome's `dht` component. (Moved from GPIO 4 during bring-up debugging; the underlying issue was wiring, not pin choice, but GPIO 32 was the pin in place once the sensor started reporting.) |
-| LDR DO | 13 | input | Digital output line from LM393 LDR module. HIGH = light above the module's trim-pot threshold; LOW = below. |
+| LDR DO | 21 | input | Digital output line from LM393 LDR module. HIGH = light above the module's trim-pot threshold; LOW = below. (Was admitted on GPIO 13 in the scope diff; operator landed on GPIO 21 at wiring time for breadboard convenience.) |
 | Audio output + | 23 | output | Passive piezo, driven by ESPHome `rtttl` output. Idle LOW. Replaces the original active buzzer; same pin, same direction, different drive pattern. Active buzzer wiring (GPIO HIGH = beep) no longer applies. |
 
 ---
@@ -335,6 +335,47 @@ If precision-requiring use cases emerge, replace the sensor with a
 BME280 or similar per §0; do not extend the DHT11 with software
 calibration. Adding a second sensor of any type on the doorbell device
 (scope drift past refusal #1's "one DHT11" admission).
+
+## Module: Light sensor (LM393 LDR)
+
+**Purpose.** Surface a binary ambient-light reading at the doorbell
+location to HA, for data gathering ahead of any future light-driven
+automation. Per refusal #1's narrow carve-out, this entry exists
+under a 90-day reconsider point: by 2026-08-15, if no concrete
+automation use case has emerged from the data, the sensor's contract
+place is reconsidered.
+
+**Defined in.** `esphome/doorbell-buzzer.yaml`.
+
+**Hardware.** LM393 comparator-based LDR module on GPIO 21
+(CLAUDE.md §2). VCC and GND to the ESP32's 3.3V/GND rails. The
+module's onboard trim-pot sets the dark/not-dark threshold; the DO
+output reflects whether ambient light is above or below it.
+
+**Entity exposed to HA.** A single `binary_sensor` entity, name
+"Light" (default object id `binary_sensor.doorbell_buzzer_light`).
+Operator-confirmed at adoption.
+
+**Polarity.** Module convention is `on` = light above threshold,
+`off` = below. If the specific physical module turns out to be
+inverted, an `invert: true` filter on the YAML pin block is the fix;
+the contract value is "above threshold = on" regardless of which
+filter is needed to achieve it.
+
+**Allowed operations.** Read the binary state in HA dashboards. Tune
+the threshold by physically turning the module's trim-pot. Add an
+`invert:` filter in YAML if the module's polarity disagrees with the
+contract convention above.
+
+**Forbidden operations.** Treating the binary signal as a calibrated
+light measurement (it is not lux; it is threshold-relative). Comparing
+readings between two LM393 modules without acknowledging that each
+module's pot setting is independent. Driving any automation off the
+signal before the data-gathering phase has produced a concrete use
+case (which is the entire point of the 90-day reconsider). If a
+precision-requiring use case emerges, replace the LM393 with a
+BH1750 (calibrated lux) or analog LDR per §0; do not extend the
+LM393.
 
 ## Module: Google Nest event ingress
 
