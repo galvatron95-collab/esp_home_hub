@@ -64,6 +64,15 @@ from active buzzer to passive piezo on the same pin, driven by ESPHome's
 `rtttl` output for a softer chime. See §8 refusal #1 for the precise
 carve-out wording.
 
+A DHT11 temperature/humidity sensor is also being added to the doorbell
+device on GPIO 4. Use case is dashboard visibility only — no automations,
+no thresholds, no alerts — explicitly framed as a learning step ahead of
+the larger multi-device sensor build-out the operator has indicated. The
+DHT11's accuracy (±5% RH, ±2°C) is sufficient for dashboard visibility
+but insufficient for serious data work; any future use case requiring
+real precision should reach for a BME280 or similar, not extend the
+DHT11. See §8 refusal #1 for the precise carve-out wording.
+
 ## Quality bar for v1
 
 - **Latency, command path (ESP32 ↔ HA, LAN):** buzzer responds within 1
@@ -141,6 +150,7 @@ this table in the same diff that uses it.
 | UART0 TX | 1 | output | Default serial console. Reserved. |
 | UART0 RX | 3 | input | Default serial console. Reserved. |
 | SPI flash | 6–11 | — | Internal flash bus. Do not use. |
+| DHT11 DATA | 4 | input | Single-wire data line to DHT11 temp/humidity sensor. Internal pull-up enabled by ESPHome's `dht` component. |
 | Audio output + | 23 | output | Passive piezo, driven by ESPHome `rtttl` output. Idle LOW. Replaces the original active buzzer; same pin, same direction, different drive pattern. Active buzzer wiring (GPIO HIGH = beep) no longer applies. |
 
 ---
@@ -375,7 +385,11 @@ specific item and ask whether to proceed.
 
 1. Adding features beyond v1 scope (sensors, on-device button input,
    multi-tone audio beyond a single doorbell-chime output, battery
-   monitoring, OLED display, multiple audio outputs). The v1 audio output
+   monitoring, OLED display, multiple audio outputs). One sensor — a
+   DHT11 temp/humidity sensor on the doorbell-buzzer device, GPIO 4 —
+   is admitted as a narrow learning-scope exception; see §0 for the
+   motivation. All other sensors (PIR, mmWave, LDR, obstacle avoidance,
+   air quality, etc.) remain refused. The v1 audio output
    is a single passive piezo on GPIO 23 driven by ESPHome's `rtttl`
    output, replacing the original active buzzer. A single chime melody
    (mono, RTTTL-formatted) is in-scope; multiple distinct chimes,

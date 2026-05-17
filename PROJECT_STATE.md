@@ -25,7 +25,21 @@
 
 ## In progress
 
-(Empty.)
+- Add DHT11 temperature/humidity sensor to the doorbell-buzzer device,
+  GPIO 4. Dashboard-visibility-only use case (no automations, no
+  alerts), explicitly a learning step ahead of the multi-device sensor
+  build-out. Scope-admitted by §8 refusal #1's narrow carve-out for a
+  single DHT11 sensor. Steps:
+    1. Operator physically wires the DHT11 (VCC → 3.3V, GND → GND,
+       DATA → GPIO 4). Refusal #5: hardware work, not CVC's.
+    2. CVC drafts the `esphome/doorbell-buzzer.yaml` change adding a
+       `dht` platform sensor and the resulting `sensor.*_temperature`
+       and `sensor.*_humidity` entities, plus a §5 module-contract
+       entry "Environmental sensor (DHT11)".
+    3. Operator flashes, confirms the two new sensor entities appear
+       in HA and report plausible readings. CVC then promotes via a
+       PROJECT_STATE.md / §5 truth-up diff (same pattern as the
+       speaker swap closeout).
 
 ## Blocked / deferred
 
@@ -34,7 +48,7 @@
 - Physical doorbell button reader on the device — deferred to v2 (the trigger comes from HA automations, not from a button on this device).
 - OLED status display (kit-included) — deferred to v2; kept in mind for later.
 - PIR motion sensor (kit-included) — deferred to v2; the trigger is an HA-side automation, not local motion.
-- Other kit sensors (DHT11 temp/humidity, photoresistor, obstacle avoidance) — out of scope for v1.
+- Other kit sensors (photoresistor, obstacle avoidance) — out of scope for v1. (DHT11 was previously listed here; it has been admitted via refusal #1 carve-out and is tracked under In progress.)
 
 ## Last verified deploy
 
