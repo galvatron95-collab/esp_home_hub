@@ -55,7 +55,7 @@ button:
     on_press:
       - rtttl.play: "Ding:d=4,o=7,b=180:e,c"
 
-# DHT11 temp/humidity sensor on GPIO 4 (CLAUDE.md §2). Dashboard-
+# DHT11 temp/humidity sensor on GPIO 32 (CLAUDE.md §2). Dashboard-
 # visibility-only per refusal #1's narrow carve-out. accuracy_decimals
 # and round filters set to 0 to match the DHT11's actual integer
 # accuracy — see §5 "Environmental sensor (DHT11)" forbidden clause.

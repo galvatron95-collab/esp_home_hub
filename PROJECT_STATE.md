@@ -22,24 +22,16 @@
   longer `switch.buzzer`). DoorBuzzer automation rebuilt to press the
   button 5 times with 1-second waits. Verified by pressing the physical
   doorbell and hearing five ding-dongs at acceptable volume.
+- Environmental sensor (DHT11) on the doorbell-buzzer device, GPIO 32.
+  Two new HA entities: `sensor.doorbell_buzzer_temperature` and
+  `sensor.doorbell_buzzer_humidity`, reporting ambient values at
+  integer precision per the §5 module contract. Verified by the
+  operator opening HA and confirming the two entities show real
+  numbers rather than `unavailable`.
 
 ## In progress
 
-- Add DHT11 temperature/humidity sensor to the doorbell-buzzer device,
-  GPIO 4. Dashboard-visibility-only use case (no automations, no
-  alerts), explicitly a learning step ahead of the multi-device sensor
-  build-out. Scope-admitted by §8 refusal #1's narrow carve-out for a
-  single DHT11 sensor. Steps:
-    1. Operator physically wires the DHT11 (VCC → 3.3V, GND → GND,
-       DATA → GPIO 4). Refusal #5: hardware work, not CVC's.
-    2. CVC drafts the `esphome/doorbell-buzzer.yaml` change adding a
-       `dht` platform sensor and the resulting `sensor.*_temperature`
-       and `sensor.*_humidity` entities, plus a §5 module-contract
-       entry "Environmental sensor (DHT11)".
-    3. Operator flashes, confirms the two new sensor entities appear
-       in HA and report plausible readings. CVC then promotes via a
-       PROJECT_STATE.md / §5 truth-up diff (same pattern as the
-       speaker swap closeout).
+(Empty.)
 
 ## Blocked / deferred
 
@@ -60,5 +52,9 @@
 - 2026-05-16: Audio output swapped to passive piezo, RTTTL chime at
   octave 7. End-to-end verified at the physical doorbell — five
   ding-dongs at acceptable volume in the operator's mounting room.
+- 2026-05-17: DHT11 sensor reporting. After bring-up debugging
+  (DATA pin moved across several GPIOs before the wiring issue was
+  found), settled on GPIO 32. Temperature and humidity entities
+  confirmed visible in HA with plausible integer readings.
 - Versions verified: HA OS 17.3, ESPHome add-on 2026.4.5, ESPHome
   framework 2026.4.5.

@@ -150,7 +150,7 @@ this table in the same diff that uses it.
 | UART0 TX | 1 | output | Default serial console. Reserved. |
 | UART0 RX | 3 | input | Default serial console. Reserved. |
 | SPI flash | 6–11 | — | Internal flash bus. Do not use. |
-| DHT11 DATA | 4 | input | Single-wire data line to DHT11 temp/humidity sensor. Internal pull-up enabled by ESPHome's `dht` component. |
+| DHT11 DATA | 32 | input | Single-wire data line to DHT11 temp/humidity sensor. Internal pull-up enabled by ESPHome's `dht` component. (Moved from GPIO 4 during bring-up debugging; the underlying issue was wiring, not pin choice, but GPIO 32 was the pin in place once the sensor started reporting.) |
 | Audio output + | 23 | output | Passive piezo, driven by ESPHome `rtttl` output. Idle LOW. Replaces the original active buzzer; same pin, same direction, different drive pattern. Active buzzer wiring (GPIO HIGH = beep) no longer applies. |
 
 ---
@@ -292,7 +292,7 @@ narrow carve-out — no automations, no thresholds, no alerts.
 
 **Defined in.** `esphome/doorbell-buzzer.yaml`.
 
-**Hardware.** DHT11 single-wire temp/humidity sensor on GPIO 4
+**Hardware.** DHT11 single-wire temp/humidity sensor on GPIO 32
 (CLAUDE.md §2). VCC and GND to the ESP32's 3.3V and GND rails.
 
 **Entities exposed to HA.** Two `sensor` entities, names "Temperature"
