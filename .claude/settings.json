@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($cmd = Get-Command usbipd -ErrorAction SilentlyContinue; if \\($cmd\\) { \"usbipd: $\\($cmd.Source\\)\"; usbipd --version } else { \"usbipd: NOT INSTALLED\" })",
+      "PowerShell($cmd = Get-Command usbipd -ErrorAction SilentlyContinue; if \\($cmd\\) { \"usbipd: $\\($cmd.Source\\)\"; usbipd --version } else { \"usbipd: STILL NOT FOUND - new shell may be needed\" }; \"---\"; usbipd list 2>&1)",
+      "PowerShell($path = \"C:\\\\Program Files\\\\usbipd-win\\\\usbipd.exe\"; if \\(Test-Path $path\\) { \"FOUND: $path\"; & $path --version; \"---\"; & $path list } else { \"Not at default path. Searching...\"; Get-ChildItem -Path C:\\\\ -Filter usbipd.exe -Recurse -ErrorAction SilentlyContinue -Depth 4 | Select-Object -First 5 FullName })",
+      "PowerShell(wsl -d Ubuntu-22.04 -u rowan -- bash -c \"sudo usermod -aG dialout rowan && echo 'added'; groups rowan\")",
+      "PowerShell(wsl -d Ubuntu-22.04 -u rowan -- bash -c \"cp /mnt/c/Users/rowan/flash.sh /tmp/f.sh && tr -d '\\\\r' < /tmp/f.sh > /tmp/f2.sh && bash /tmp/f2.sh\")",
+      "PowerShell(wsl -d Ubuntu-22.04 -u rowan -- bash -c \"cp /mnt/c/Users/rowan/monitor.sh /tmp/m.sh && tr -d '\\\\r' < /tmp/m.sh > /tmp/m2.sh && bash /tmp/m2.sh\")",
+      "Bash(git -C \"C:/Users/rowan/esp_home_hub\" add main/app_main.cpp)",
+      "Bash(git -C C:/Users/rowan/esp_home_hub commit -m ' *)",
+      "PowerShell(wsl -d Ubuntu-22.04 -u rowan -- bash -c \"cd /home/rowan/esp_home_hub && git status --short; echo '---WSL HEAD:'; git log -1 --oneline\")",
+      "PowerShell(wsl -d Ubuntu-22.04 -u rowan -- bash -c \"cp /mnt/c/Users/rowan/verify-ps.sh /tmp/v.sh && tr -d '\\\\r' < /tmp/v.sh > /tmp/v2.sh && bash /tmp/v2.sh\")",
+      "PowerShell(wsl -d Ubuntu-22.04 -u rowan -- bash -c \"cp /mnt/c/Users/rowan/tap-watch.sh /tmp/t.sh && tr -d '\\\\r' < /tmp/t.sh > /tmp/t2.sh && bash /tmp/t2.sh\")",
+      "PowerShell(wsl -d Ubuntu-22.04 -u rowan -- bash -c \"cp /mnt/c/Users/rowan/diag.sh /tmp/d.sh && tr -d '\\\\r' < /tmp/d.sh > /tmp/d2.sh && bash /tmp/d2.sh\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
