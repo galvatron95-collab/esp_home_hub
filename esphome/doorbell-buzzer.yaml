@@ -54,3 +54,23 @@ button:
     name: Play Chime
     on_press:
       - rtttl.play: "Ding:d=4,o=7,b=180:e,c"
+
+# DHT11 temp/humidity sensor on GPIO 4 (CLAUDE.md §2). Dashboard-
+# visibility-only per refusal #1's narrow carve-out. accuracy_decimals
+# and round filters set to 0 to match the DHT11's actual integer
+# accuracy — see §5 "Environmental sensor (DHT11)" forbidden clause.
+sensor:
+  - platform: dht
+    model: DHT11
+    pin: GPIO4
+    temperature:
+      name: Temperature
+      accuracy_decimals: 0
+      filters:
+        - round: 0
+    humidity:
+      name: Humidity
+      accuracy_decimals: 0
+      filters:
+        - round: 0
+    update_interval: 60s

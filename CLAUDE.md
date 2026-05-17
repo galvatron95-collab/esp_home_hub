@@ -284,6 +284,42 @@ updating this section, not by leaving them out of sync. The earlier
 pre-rtttl automation (Turn on `switch.buzzer` → Wait → Turn off) is
 retired; `switch.buzzer` no longer exists.
 
+## Module: Environmental sensor (DHT11)
+
+**Purpose.** Expose ambient temperature and humidity at the doorbell
+location to HA's dashboard. Dashboard-visibility-only per refusal #1's
+narrow carve-out — no automations, no thresholds, no alerts.
+
+**Defined in.** `esphome/doorbell-buzzer.yaml`.
+
+**Hardware.** DHT11 single-wire temp/humidity sensor on GPIO 4
+(CLAUDE.md §2). VCC and GND to the ESP32's 3.3V and GND rails.
+
+**Entities exposed to HA.** Two `sensor` entities, names "Temperature"
+(default object id `sensor.doorbell_buzzer_temperature`) and "Humidity"
+(default object id `sensor.doorbell_buzzer_humidity`). Operator-confirmed
+at adoption.
+
+**Update interval.** 60 seconds. Matches the ESPHome `dht` component's
+default; sufficient for ambient-environment changes (which don't move
+meaningfully on shorter timescales) and gentle on HA's recorder.
+
+**Precision.** Both entities report to integer precision
+(`accuracy_decimals: 0` plus a `round: 0` filter) to match the DHT11's
+actual ±2°C / ±5% RH accuracy. The component's default 0.1° / 0.1% RH
+display implies precision the sensor doesn't have.
+
+**Allowed operations.** Display the readings in HA dashboards and history
+graphs. Adjust the update interval in YAML.
+
+**Forbidden operations.** Treating the readings as precise (e.g. driving
+automations off ±0.5°C thresholds, comparing values between two DHT11s
+to detect drift) — the DHT11's accuracy doesn't support those uses.
+If precision-requiring use cases emerge, replace the sensor with a
+BME280 or similar per §0; do not extend the DHT11 with software
+calibration. Adding a second sensor of any type on the doorbell device
+(scope drift past refusal #1's "one DHT11" admission).
+
 ## Module: Google Nest event ingress
 
 **Purpose.** Surface doorbell-press events from the Google Nest Doorbell
