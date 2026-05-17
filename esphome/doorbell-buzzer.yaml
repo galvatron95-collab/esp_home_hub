@@ -62,7 +62,7 @@ button:
 sensor:
   - platform: dht
     model: DHT11
-    pin: GPIO18
+    pin: GPIO32
     temperature:
       name: Temperature
       accuracy_decimals: 0
