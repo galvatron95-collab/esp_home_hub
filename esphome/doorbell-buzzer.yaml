@@ -86,3 +86,4 @@ binary_sensor:
     pin:
       number: GPIO21
       mode: INPUT
+      inverted: true

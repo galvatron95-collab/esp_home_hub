@@ -357,15 +357,15 @@ output reflects whether ambient light is above or below it.
 Operator-confirmed at adoption.
 
 **Polarity.** Module convention is `on` = light above threshold,
-`off` = below. If the specific physical module turns out to be
-inverted, an `invert: true` filter on the YAML pin block is the fix;
-the contract value is "above threshold = on" regardless of which
-filter is needed to achieve it.
+`off` = below. The operator's physical module is inverted relative
+to that convention (reports `on` when dark), corrected by
+`inverted: true` on the YAML pin block. The contract value remains
+"above threshold = on" regardless of which YAML setting achieves it.
 
 **Allowed operations.** Read the binary state in HA dashboards. Tune
-the threshold by physically turning the module's trim-pot. Add an
-`invert:` filter in YAML if the module's polarity disagrees with the
-contract convention above.
+the threshold by physically turning the module's trim-pot. Add or
+remove `inverted: true` on the YAML pin block to match physical
+module polarity to the contract convention above.
 
 **Forbidden operations.** Treating the binary signal as a calibrated
 light measurement (it is not lux; it is threshold-relative). Comparing
