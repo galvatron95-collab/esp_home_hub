@@ -1,0 +1,7 @@
+azure_secrets.py
+output.wav
+output_*.wav
+__pycache__/
+*.pyc
+.venv/
+venv/
