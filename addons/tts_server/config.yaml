@@ -1,5 +1,5 @@
 name: TTS Server
-version: "0.2.0"
+version: "0.2.1"
 slug: tts_server
 description: Azure TTS WebSocket server with READY-gated handshake for ESP32 audio clients.
 url: https://github.com/galvatron95-collab/esp_home_hub
@@ -9,6 +9,7 @@ startup: services
 boot: auto
 init: false
 hassio_api: true
+homeassistant_api: true
 ports:
   8765/tcp: 8765
   8766/tcp: 8766
