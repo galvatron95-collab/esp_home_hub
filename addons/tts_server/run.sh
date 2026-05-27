@@ -31,7 +31,7 @@ if [ -z "${AZURE_KEY}" ] || [ -z "${AZURE_REGION}" ]; then
     echo "WARNING: AZURE_KEY or AZURE_REGION is empty; TTS calls will return empty audio."
 fi
 
-echo "Starting tts_server on ws://0.0.0.0:${WS_PORT:-8765}, mqtt=${MQTT_HOST:-core-mosquitto}:${MQTT_PORT:-1883} topic=${MQTT_TOPIC:-tts/response}"
+echo "Starting tts_server: TTS ws://0.0.0.0:${WS_PORT:-8765}, STT ws://0.0.0.0:${STT_PORT:-8766}, mqtt=${MQTT_HOST:-core-mosquitto}:${MQTT_PORT:-1883} topic=${MQTT_TOPIC:-tts/response}"
 
 cd /app
 exec python3 tts_server.py

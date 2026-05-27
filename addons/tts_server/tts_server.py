@@ -18,9 +18,12 @@ connection stays open. The patient end of the wire is the server.
 """
 
 import asyncio
+import json
 import logging
 import os
 import signal
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 
 import azure.cognitiveservices.speech as speechsdk
@@ -46,11 +49,14 @@ if not AZURE_KEY or not AZURE_REGION:
 
 WS_HOST = "0.0.0.0"
 WS_PORT = int(os.getenv("WS_PORT", "8765"))
+STT_PORT = int(os.getenv("STT_PORT", "8766"))
 MQTT_HOST = os.getenv("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_USERNAME = os.getenv("MQTT_USERNAME") or None
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD") or None
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "tts/response")
+SUPERVISOR_TOKEN = os.getenv("SUPERVISOR_TOKEN") or None
+HA_EVENT_URL = "http://supervisor/core/api/events/esp32_transcript"
 CHUNK_SIZE = 4096
 READY_MARKER = "READY"
 
@@ -171,6 +177,54 @@ async def ws_handler(websocket) -> None:
         log.info("Client disconnected: %s (total=%d)", peer, len(clients))
 
 
+def post_transcript_event(text: str) -> int:
+    """POST one transcript to the HA Core event API via the Supervisor
+    proxy. Returns the HTTP status code, or 0 if the request could not
+    be made. Blocking; callers offload it with asyncio.to_thread."""
+    if not SUPERVISOR_TOKEN:
+        log.error("SUPERVISOR_TOKEN missing; cannot fire HA event")
+        return 0
+    body = json.dumps({"text": text}).encode("utf-8")
+    req = urllib.request.Request(
+        HA_EVENT_URL,
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {SUPERVISOR_TOKEN}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.status
+    except urllib.error.HTTPError as e:
+        log.error("HA event POST HTTPError: %s", e.code)
+        return e.code
+    except OSError as e:
+        log.error("HA event POST failed: %s", e)
+        return 0
+
+
+async def stt_handler(websocket) -> None:
+    """Per-connection handler for the STT ingress port. Each inbound
+    text frame is a complete transcript: fire it into HA as an
+    esp32_transcript event. No gating, no binary frames, no queue."""
+    peer = websocket.remote_address
+    log.info("STT client connected: %s", peer)
+    try:
+        async for message in websocket:
+            if isinstance(message, bytes):
+                log.warning("%s: STT ignoring binary frame", peer)
+                continue
+            log.info("%s: transcript %r", peer, message[:200])
+            status = await asyncio.to_thread(post_transcript_event, message)
+            log.info("%s: HA event POST -> %s", peer, status)
+    except websockets.ConnectionClosed:
+        pass
+    finally:
+        log.info("STT client disconnected: %s", peer)
+
+
 def start_mqtt(loop: asyncio.AbstractEventLoop) -> mqtt.Client:
     """Start paho MQTT in its own thread; bridge messages onto `loop`.
 
@@ -227,8 +281,10 @@ async def main() -> None:
         except NotImplementedError:
             pass
 
-    async with websockets.serve(ws_handler, WS_HOST, WS_PORT):
+    async with websockets.serve(ws_handler, WS_HOST, WS_PORT), \
+            websockets.serve(stt_handler, WS_HOST, STT_PORT):
         log.info("WebSocket server listening on ws://%s:%d", WS_HOST, WS_PORT)
+        log.info("STT ingress listening on ws://%s:%d", WS_HOST, STT_PORT)
         if not AZURE_KEY or not AZURE_REGION:
             log.warning(
                 "azure_secrets.py not found or incomplete; TTS calls will "
