@@ -181,6 +181,7 @@ async def run_gate_test(text: str, gate_release_after: float) -> int:
 
 
 def main() -> int:
+    global SERVER_URI
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("text", nargs="*", default=["Hello from the test client."])
     mode = parser.add_mutually_exclusive_group()
@@ -190,7 +191,11 @@ def main() -> int:
                       help="Send two prompts, verify the second is gated on READY.")
     parser.add_argument("--gate-release-after", type=float, default=3.0,
                         help="Seconds to wait before sending READY in --gate-test.")
+    parser.add_argument("--server", default=SERVER_URI,
+                        help=f"WebSocket server URI (default {SERVER_URI}).")
     args = parser.parse_args()
+
+    SERVER_URI = args.server
 
     text = " ".join(args.text)
     if args.no_ready:
