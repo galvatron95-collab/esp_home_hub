@@ -1,24 +1,37 @@
-#!/usr/bin/with-contenv bashio
+#!/usr/bin/env sh
 # Entrypoint for the tts_server add-on. Reads add-on options from
-# /data/options.json via bashio, exports them as environment
-# variables, and execs the Python server.
+# /data/options.json and exports them as environment variables, then
+# execs the Python server. Uses plain Python for JSON parsing because
+# this image is python:3.11-slim (Debian), not an HA base image with
+# bashio.
 
 set -e
 
-export AZURE_KEY="$(bashio::config 'azure_key')"
-export AZURE_REGION="$(bashio::config 'azure_region')"
-export MQTT_HOST="$(bashio::config 'mqtt_host')"
-export MQTT_PORT="$(bashio::config 'mqtt_port')"
-export MQTT_USERNAME="$(bashio::config 'mqtt_username')"
-export MQTT_PASSWORD="$(bashio::config 'mqtt_password')"
-export MQTT_TOPIC="$(bashio::config 'mqtt_topic')"
-export WS_PORT="$(bashio::config 'ws_port')"
+OPTIONS_FILE="/data/options.json"
 
-if [ -z "${AZURE_KEY}" ] || [ -z "${AZURE_REGION}" ]; then
-    bashio::log.warning "AZURE_KEY or AZURE_REGION is empty; TTS calls will return empty audio."
+# Read one option from /data/options.json. Empty string if absent.
+get_opt() {
+    python3 -c "import json,sys; print(json.load(open('${OPTIONS_FILE}')).get('$1',''))" 2>/dev/null || echo ""
+}
+
+if [ -f "${OPTIONS_FILE}" ]; then
+    export AZURE_KEY="$(get_opt azure_key)"
+    export AZURE_REGION="$(get_opt azure_region)"
+    export MQTT_HOST="$(get_opt mqtt_host)"
+    export MQTT_PORT="$(get_opt mqtt_port)"
+    export MQTT_USERNAME="$(get_opt mqtt_username)"
+    export MQTT_PASSWORD="$(get_opt mqtt_password)"
+    export MQTT_TOPIC="$(get_opt mqtt_topic)"
+    export WS_PORT="$(get_opt ws_port)"
+else
+    echo "WARNING: ${OPTIONS_FILE} not found; relying on existing env vars."
 fi
 
-bashio::log.info "Starting tts_server on ws://0.0.0.0:${WS_PORT}, mqtt=${MQTT_HOST}:${MQTT_PORT} topic=${MQTT_TOPIC}"
+if [ -z "${AZURE_KEY}" ] || [ -z "${AZURE_REGION}" ]; then
+    echo "WARNING: AZURE_KEY or AZURE_REGION is empty; TTS calls will return empty audio."
+fi
+
+echo "Starting tts_server on ws://0.0.0.0:${WS_PORT:-8765}, mqtt=${MQTT_HOST:-core-mosquitto}:${MQTT_PORT:-1883} topic=${MQTT_TOPIC:-tts/response}"
 
 cd /app
 exec python3 tts_server.py

@@ -1,0 +1,4 @@
+# Shell scripts must use LF line endings so they run correctly inside
+# Linux containers (a CRLF shebang line breaks with "env: 'sh\r': No
+# such file or directory"). Force LF regardless of the committer's OS.
+*.sh text eol=lf

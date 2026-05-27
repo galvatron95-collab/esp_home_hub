@@ -1,17 +1,18 @@
-ARG BUILD_FROM
-FROM ${BUILD_FROM}
+FROM python:3.11-slim
 
 ENV LANG=C.UTF-8
 
-# Azure Speech SDK requires libssl + libasound; the HA python base image
-# ships Alpine, so install the runtime deps via apk before pip-installing
-# the wheels.
-RUN apk add --no-cache \
-    libstdc++ \
-    libffi \
-    openssl \
-    ca-certificates \
-    alsa-lib
+# Azure Speech SDK ships glibc (manylinux) wheels only — no musl/Alpine
+# build exists — so this image is Debian-based (python:3.11-slim). The
+# SDK needs libssl and libasound2 at runtime; install them via apt.
+# libssl3 is the Debian 12 (Bookworm) package name, which is what
+# python:3.11-slim currently resolves to.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libssl3 \
+        libasound2 \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
