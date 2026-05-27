@@ -19,6 +19,7 @@ connection stays open. The patient end of the wire is the server.
 
 import asyncio
 import logging
+import os
 import signal
 from dataclasses import dataclass, field
 
@@ -26,17 +27,30 @@ import azure.cognitiveservices.speech as speechsdk
 import paho.mqtt.client as mqtt
 import websockets
 
-try:
-    from azure_secrets import AZURE_KEY, AZURE_REGION
-except ImportError:
-    AZURE_KEY = None
-    AZURE_REGION = None
+# Azure creds: prefer env vars (set by the HA add-on's run.sh from
+# /data/options.json), fall back to azure_secrets.py for local dev
+# on machines where the file exists. Either source is honoured;
+# whichever is non-empty wins, with env vars taking priority.
+AZURE_KEY = os.getenv("AZURE_KEY") or None
+AZURE_REGION = os.getenv("AZURE_REGION") or None
+if not AZURE_KEY or not AZURE_REGION:
+    try:
+        from azure_secrets import (
+            AZURE_KEY as _SECRETS_KEY,
+            AZURE_REGION as _SECRETS_REGION,
+        )
+        AZURE_KEY = AZURE_KEY or _SECRETS_KEY
+        AZURE_REGION = AZURE_REGION or _SECRETS_REGION
+    except ImportError:
+        pass
 
 WS_HOST = "0.0.0.0"
-WS_PORT = 8765
-MQTT_HOST = "localhost"
-MQTT_PORT = 1883
-MQTT_TOPIC = "tts/response"
+WS_PORT = int(os.getenv("WS_PORT", "8765"))
+MQTT_HOST = os.getenv("MQTT_HOST", "localhost")
+MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+MQTT_USERNAME = os.getenv("MQTT_USERNAME") or None
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD") or None
+MQTT_TOPIC = os.getenv("MQTT_TOPIC", "tts/response")
 CHUNK_SIZE = 4096
 READY_MARKER = "READY"
 
@@ -165,14 +179,17 @@ def start_mqtt(loop: asyncio.AbstractEventLoop) -> mqtt.Client:
     on the READY handshake.
     """
     client = mqtt.Client()
+    if MQTT_USERNAME:
+        client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD or "")
 
     def on_connect(_c, _u, _flags, rc):
         if rc == 0:
-            log.info("MQTT connected to %s:%d", MQTT_HOST, MQTT_PORT)
+            log.info("MQTT connected to %s:%d as %r", MQTT_HOST, MQTT_PORT,
+                     MQTT_USERNAME or "<anonymous>")
             client.subscribe(MQTT_TOPIC)
             log.info("MQTT subscribed to %r", MQTT_TOPIC)
         else:
-            log.error("MQTT connect failed rc=%d", rc)
+            log.error("MQTT connect failed rc=%d (5=auth failure)", rc)
 
     def on_message(_c, _u, msg):
         try:
