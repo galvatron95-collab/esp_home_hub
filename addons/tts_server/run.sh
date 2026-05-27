@@ -24,6 +24,7 @@ if [ -f "${OPTIONS_FILE}" ]; then
     export MQTT_TOPIC="$(get_opt mqtt_topic)"
     export WS_PORT="$(get_opt ws_port)"
     export HA_CONVERSATION_AGENT="$(get_opt ha_conversation_agent)"
+    export AZURE_VOICE="$(get_opt azure_voice)"
 else
     echo "WARNING: ${OPTIONS_FILE} not found; relying on existing env vars."
 fi

@@ -1,5 +1,5 @@
 name: TTS Server
-version: "0.3.0"
+version: "0.4.0"
 slug: tts_server
 description: Azure TTS WebSocket server with READY-gated handshake and HA conversation round-trip for ESP32 audio clients.
 url: https://github.com/galvatron95-collab/esp_home_hub
@@ -28,6 +28,7 @@ options:
   mqtt_topic: tts/response
   ws_port: 8765
   ha_conversation_agent: conversation.claude_conversation
+  azure_voice: en-US-AvaMultilingualNeural
 schema:
   azure_key: password
   azure_region: str
@@ -38,3 +39,4 @@ schema:
   mqtt_topic: str
   ws_port: port
   ha_conversation_agent: str
+  azure_voice: str

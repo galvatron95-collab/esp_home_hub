@@ -79,6 +79,11 @@ HA_CONVERSATION_AGENT = os.getenv(
     "HA_CONVERSATION_AGENT", "conversation.claude_conversation"
 )
 
+# Azure multilingual voice — speaks EN + ZH (and more) from one voice,
+# so the server never has to pick a per-language voice for Claude's
+# (possibly translated) response. Set via the add-on option azure_voice.
+AZURE_VOICE = os.getenv("AZURE_VOICE", "en-US-AvaMultilingualNeural")
+
 CHUNK_SIZE = 4096
 READY_MARKER = "READY"
 
@@ -124,6 +129,7 @@ def synthesize(text: str) -> bytes:
     speech_config = speechsdk.SpeechConfig(
         subscription=AZURE_KEY, region=AZURE_REGION
     )
+    speech_config.speech_synthesis_voice_name = AZURE_VOICE
     speech_config.set_speech_synthesis_output_format(
         speechsdk.SpeechSynthesisOutputFormat.Raw16Khz16BitMonoPcm
     )
@@ -243,7 +249,7 @@ def post_transcript_event(text: str) -> int:
         return 0
 
 
-def call_conversation_process(text: str) -> str | None:
+def call_conversation_process(text: str, language: str) -> str | None:
     """POST the transcript to HA's conversation/process API and return
     the response text, or None on failure. Blocking; callers offload it
     with asyncio.to_thread.
@@ -251,7 +257,9 @@ def call_conversation_process(text: str) -> str | None:
     The conversation agent is selected by HA_CONVERSATION_AGENT
     (default: conversation.claude_conversation). HA resolves intent
     (device control) or falls back to the LLM for free-form responses.
-    The returned speech field contains the text to synthesise.
+    `language` is the INPUT language (what was spoken: 'en'/'zh') so the
+    agent knows the source language; Claude may still translate, and the
+    multilingual Azure voice speaks whatever language it returns.
     """
     if not SUPERVISOR_TOKEN:
         log.error("SUPERVISOR_TOKEN missing; cannot call conversation API")
@@ -259,7 +267,7 @@ def call_conversation_process(text: str) -> str | None:
     body = json.dumps({
         "text": text,
         "agent_id": HA_CONVERSATION_AGENT,
-        "language": "en",
+        "language": language,
     }).encode("utf-8")
     req = urllib.request.Request(
         HA_CONVERSATION_URL,
@@ -320,8 +328,19 @@ async def stt_handler(websocket) -> None:
                 log.info("%s: READY received, closing STT connection", peer)
                 break
 
-            transcript = message
-            log.info("%s: transcript %r", peer, transcript[:200])
+            # Frame is JSON: {"text": "<transcript>", "lang": "en"|"zh"}.
+            try:
+                frame = json.loads(message)
+                transcript = frame["text"]
+                language = frame.get("lang", "en")
+            except (json.JSONDecodeError, KeyError, TypeError) as e:
+                log.error("%s: bad transcript frame %r (%s); closing",
+                          peer, message[:200], e)
+                break
+            if not transcript:
+                log.warning("%s: empty transcript in frame; closing", peer)
+                break
+            log.info("%s: transcript %r lang=%s", peer, transcript[:200], language)
 
             # Fire the HA event for any automation observers (non-blocking
             # from the ESP32's perspective — we don't wait on the result
@@ -334,7 +353,7 @@ async def stt_handler(websocket) -> None:
             # step; 1-3 seconds typical.
             log.info("%s: calling conversation agent %s", peer, HA_CONVERSATION_AGENT)
             response_text = await asyncio.to_thread(
-                call_conversation_process, transcript
+                call_conversation_process, transcript, language
             )
 
             if not response_text:
@@ -418,8 +437,8 @@ async def main() -> None:
     async with websockets.serve(ws_handler, WS_HOST, WS_PORT), \
             websockets.serve(stt_handler, WS_HOST, STT_PORT):
         log.info("WebSocket server listening on ws://%s:%d", WS_HOST, WS_PORT)
-        log.info("STT round-trip listening on ws://%s:%d (agent=%s)",
-                 WS_HOST, STT_PORT, HA_CONVERSATION_AGENT)
+        log.info("STT round-trip listening on ws://%s:%d (agent=%s voice=%s)",
+                 WS_HOST, STT_PORT, HA_CONVERSATION_AGENT, AZURE_VOICE)
         if not AZURE_KEY or not AZURE_REGION:
             log.warning(
                 "azure_secrets.py not found or incomplete; TTS calls will "
