@@ -23,6 +23,7 @@ if [ -f "${OPTIONS_FILE}" ]; then
     export MQTT_PASSWORD="$(get_opt mqtt_password)"
     export MQTT_TOPIC="$(get_opt mqtt_topic)"
     export WS_PORT="$(get_opt ws_port)"
+    export HA_CONVERSATION_AGENT="$(get_opt ha_conversation_agent)"
 else
     echo "WARNING: ${OPTIONS_FILE} not found; relying on existing env vars."
 fi
@@ -31,7 +32,7 @@ if [ -z "${AZURE_KEY}" ] || [ -z "${AZURE_REGION}" ]; then
     echo "WARNING: AZURE_KEY or AZURE_REGION is empty; TTS calls will return empty audio."
 fi
 
-echo "Starting tts_server: TTS ws://0.0.0.0:${WS_PORT:-8765}, STT ws://0.0.0.0:${STT_PORT:-8766}, mqtt=${MQTT_HOST:-core-mosquitto}:${MQTT_PORT:-1883} topic=${MQTT_TOPIC:-tts/response}"
+echo "Starting tts_server: TTS ws://0.0.0.0:${WS_PORT:-8765}, STT round-trip ws://0.0.0.0:${STT_PORT:-8766} (agent=${HA_CONVERSATION_AGENT:-conversation.claude_conversation}), mqtt=${MQTT_HOST:-core-mosquitto}:${MQTT_PORT:-1883} topic=${MQTT_TOPIC:-tts/response}"
 
 cd /app
 exec python3 tts_server.py

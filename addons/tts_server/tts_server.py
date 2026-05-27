@@ -1,20 +1,31 @@
 """TTS WebSocket server with READY-gated handshake.
 
-Each WebSocket connection has its own request queue and a `ready` flag.
-The protocol is:
+Port 8765 — TTS (MQTT-driven):
+  Each WebSocket connection has its own request queue and a `ready` flag.
+  The protocol is:
 
-  client → text       "say this"
-  server → audio chunks (4096-byte binary frames)
-  server → 0-byte binary frame  (EOS)
-  server waits, holding the connection open
-  client → text       "READY"
-  server → accepts next request
+    MQTT message arrives  →  enqueue text on all connected clients
+    server → audio chunks (4096-byte binary frames)
+    server → 0-byte binary frame  (EOS)
+    server waits, holding the connection open
+    client → text  "READY"
+    server → accepts next request
 
-MQTT messages on topic ``tts/response`` enqueue a synthesis request on every
-currently-connected client. If a client is mid-stream or waiting for READY,
-the request waits in that client's queue. There is no time-based timeout on
-the READY wait; if a client never sends READY, its queue grows but the
-connection stays open. The patient end of the wire is the server.
+Port 8766 — STT round-trip (ESP32-driven):
+  The ESP32 opens a connection, sends the finalised transcript as one
+  text frame, and holds the connection open. The server:
+
+    client → text  "<transcript>"
+    server calls HA conversation.process (Claude) → response text
+    server synthesises response text via Azure TTS → raw PCM
+    server → audio chunks (4096-byte binary frames)
+    server → 0-byte binary frame  (EOS)
+    server waits for client READY
+    client → text  "READY"
+    server closes the connection
+
+  One transcript per connection. The connection is closed after the
+  READY handshake completes (or on any error).
 """
 
 import asyncio
@@ -56,7 +67,18 @@ MQTT_USERNAME = os.getenv("MQTT_USERNAME") or None
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD") or None
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "tts/response")
 SUPERVISOR_TOKEN = os.getenv("SUPERVISOR_TOKEN") or None
+
 HA_EVENT_URL = "http://supervisor/core/api/events/esp32_transcript"
+HA_CONVERSATION_URL = "http://supervisor/core/api/conversation/process"
+
+# Conversation agent entity ID. "conversation.claude_conversation" uses
+# the Anthropic integration; swap to "conversation.home_assistant" for
+# the built-in intent engine as a fallback. Set via the add-on option
+# ha_conversation_agent (run.sh exports HA_CONVERSATION_AGENT).
+HA_CONVERSATION_AGENT = os.getenv(
+    "HA_CONVERSATION_AGENT", "conversation.claude_conversation"
+)
+
 CHUNK_SIZE = 4096
 READY_MARKER = "READY"
 
@@ -69,7 +91,7 @@ log = logging.getLogger("tts-server")
 
 @dataclass(eq=False)
 class ClientState:
-    """Per-connection state.
+    """Per-connection state for the TTS (port 8765) clients.
 
     `queue` holds pending text-to-synthesise strings. `ready` is True
     between connection-open and the first send, then again only after
@@ -119,15 +141,26 @@ def synthesize(text: str) -> bytes:
     return b""
 
 
-async def stream_audio(state: ClientState, audio: bytes) -> None:
-    """Send `audio` as 4096-byte chunks plus a 0-byte EOS marker, then
-    clear `ready` and wait for the client's READY frame before returning."""
+async def stream_audio(websocket, audio: bytes) -> None:
+    """Send `audio` as 4096-byte chunks plus a 0-byte EOS marker.
+
+    Used by both the TTS sender task (port 8765) and the STT round-trip
+    handler (port 8766). The caller supplies the ready synchronisation
+    for the TTS path; for the STT path the READY wait is handled by the
+    handler's own receive loop."""
+    for i in range(0, len(audio), CHUNK_SIZE):
+        await websocket.send(audio[i: i + CHUNK_SIZE])
+    await websocket.send(b"")
+    peer = websocket.remote_address
+    log.info("%s: EOS sent (%d bytes total)", peer, len(audio))
+
+
+async def stream_audio_and_wait_ready(state: ClientState, audio: bytes) -> None:
+    """TTS-path wrapper: stream audio then gate on the ClientState ready event."""
     peer = state.websocket.remote_address
     state.ready.clear()
-    for i in range(0, len(audio), CHUNK_SIZE):
-        await state.websocket.send(audio[i : i + CHUNK_SIZE])
-    await state.websocket.send(b"")
-    log.info("%s: EOS sent (%d bytes), waiting for READY", peer, len(audio))
+    await stream_audio(state.websocket, audio)
+    log.info("%s: waiting for READY", peer)
     await state.ready.wait()
     log.info("%s: READY received, handshake complete", peer)
 
@@ -141,19 +174,19 @@ async def sender_task(state: ClientState) -> None:
             text = await state.queue.get()
             log.info("%s: processing %r", peer, text[:80])
             audio = await asyncio.to_thread(synthesize, text)
-            await stream_audio(state, audio)
+            await stream_audio_and_wait_ready(state, audio)
     except websockets.ConnectionClosed:
         log.info("%s: connection closed, sender exiting", peer)
 
 
 async def ws_handler(websocket) -> None:
-    """Per-connection dispatcher. Inbound text is either a synthesis
-    request (queued for the sender) or the READY marker (releases the
-    sender's wait)."""
+    """Per-connection dispatcher for port 8765 (MQTT-driven TTS).
+    Inbound text is either a synthesis request (queued for the sender)
+    or the READY marker (releases the sender's wait)."""
     peer = websocket.remote_address
     state = ClientState(websocket=websocket)
     clients.add(state)
-    log.info("Client connected: %s (total=%d)", peer, len(clients))
+    log.info("TTS client connected: %s (total=%d)", peer, len(clients))
     sender = asyncio.create_task(sender_task(state))
     try:
         async for message in websocket:
@@ -174,13 +207,18 @@ async def ws_handler(websocket) -> None:
         except (asyncio.CancelledError, websockets.ConnectionClosed):
             pass
         clients.discard(state)
-        log.info("Client disconnected: %s (total=%d)", peer, len(clients))
+        log.info("TTS client disconnected: %s (total=%d)", peer, len(clients))
 
 
 def post_transcript_event(text: str) -> int:
     """POST one transcript to the HA Core event API via the Supervisor
-    proxy. Returns the HTTP status code, or 0 if the request could not
-    be made. Blocking; callers offload it with asyncio.to_thread."""
+    proxy. Returns the HTTP status code, or 0 on failure. Blocking;
+    callers offload it with asyncio.to_thread.
+
+    This is now a secondary/logging action in the STT round-trip path —
+    the primary action is call_conversation_process(). The event is
+    still fired so HA automations can observe transcripts independently.
+    """
     if not SUPERVISOR_TOKEN:
         log.error("SUPERVISOR_TOKEN missing; cannot fire HA event")
         return 0
@@ -205,10 +243,70 @@ def post_transcript_event(text: str) -> int:
         return 0
 
 
+def call_conversation_process(text: str) -> str | None:
+    """POST the transcript to HA's conversation/process API and return
+    the response text, or None on failure. Blocking; callers offload it
+    with asyncio.to_thread.
+
+    The conversation agent is selected by HA_CONVERSATION_AGENT
+    (default: conversation.claude_conversation). HA resolves intent
+    (device control) or falls back to the LLM for free-form responses.
+    The returned speech field contains the text to synthesise.
+    """
+    if not SUPERVISOR_TOKEN:
+        log.error("SUPERVISOR_TOKEN missing; cannot call conversation API")
+        return None
+    body = json.dumps({
+        "text": text,
+        "agent_id": HA_CONVERSATION_AGENT,
+        "language": "en",
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        HA_CONVERSATION_URL,
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {SUPERVISOR_TOKEN}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            # HA conversation/process returns:
+            # {"response": {"speech": {"plain": {"speech": "..."}}, ...}, ...}
+            speech = (
+                data
+                .get("response", {})
+                .get("speech", {})
+                .get("plain", {})
+                .get("speech")
+            )
+            log.info("Conversation response: %r", (speech or "")[:200])
+            return speech
+    except urllib.error.HTTPError as e:
+        log.error("Conversation API HTTPError: %s", e.code)
+        return None
+    except (OSError, json.JSONDecodeError, KeyError) as e:
+        log.error("Conversation API failed: %s", e)
+        return None
+
+
 async def stt_handler(websocket) -> None:
-    """Per-connection handler for the STT ingress port. Each inbound
-    text frame is a complete transcript: fire it into HA as an
-    esp32_transcript event. No gating, no binary frames, no queue."""
+    """Per-connection handler for port 8766 (ESP32 STT round-trip).
+
+    Protocol:
+      1. ESP32 sends one text frame: the finalised transcript.
+      2. Server fires the esp32_transcript HA event (for automations).
+      3. Server calls HA conversation/process → response text.
+      4. Server synthesises response text → raw PCM.
+      5. Server streams PCM + EOS back to ESP32.
+      6. Server waits for READY from ESP32.
+      7. Server closes the connection.
+
+    One transcript per connection. Any failure is logged and the
+    connection is closed; the ESP32 returns to idle either way.
+    """
     peer = websocket.remote_address
     log.info("STT client connected: %s", peer)
     try:
@@ -216,9 +314,45 @@ async def stt_handler(websocket) -> None:
             if isinstance(message, bytes):
                 log.warning("%s: STT ignoring binary frame", peer)
                 continue
-            log.info("%s: transcript %r", peer, message[:200])
-            status = await asyncio.to_thread(post_transcript_event, message)
-            log.info("%s: HA event POST -> %s", peer, status)
+
+            if message == READY_MARKER:
+                # ESP32 acknowledged the audio — close cleanly.
+                log.info("%s: READY received, closing STT connection", peer)
+                break
+
+            transcript = message
+            log.info("%s: transcript %r", peer, transcript[:200])
+
+            # Fire the HA event for any automation observers (non-blocking
+            # from the ESP32's perspective — we don't wait on the result
+            # before proceeding to conversation).
+            asyncio.create_task(
+                asyncio.to_thread(post_transcript_event, transcript)
+            )
+
+            # Call HA conversation agent (Claude) — this is the blocking
+            # step; 1-3 seconds typical.
+            log.info("%s: calling conversation agent %s", peer, HA_CONVERSATION_AGENT)
+            response_text = await asyncio.to_thread(
+                call_conversation_process, transcript
+            )
+
+            if not response_text:
+                log.error("%s: no response from conversation agent; closing", peer)
+                break
+
+            log.info("%s: synthesising %r", peer, response_text[:200])
+            audio = await asyncio.to_thread(synthesize, response_text)
+
+            if not audio:
+                log.error("%s: synthesis produced no audio; closing", peer)
+                break
+
+            # Stream PCM + EOS, then wait for READY (arrives in the next
+            # iteration of this async-for loop and hits the break above).
+            await stream_audio(websocket, audio)
+            log.info("%s: waiting for READY", peer)
+
     except websockets.ConnectionClosed:
         pass
     finally:
@@ -229,7 +363,7 @@ def start_mqtt(loop: asyncio.AbstractEventLoop) -> mqtt.Client:
     """Start paho MQTT in its own thread; bridge messages onto `loop`.
 
     Each MQTT message enqueues the text on every currently-connected
-    client's queue. The per-client sender task gates actual delivery
+    TTS client's queue. The per-client sender task gates actual delivery
     on the READY handshake.
     """
     client = mqtt.Client()
@@ -284,7 +418,8 @@ async def main() -> None:
     async with websockets.serve(ws_handler, WS_HOST, WS_PORT), \
             websockets.serve(stt_handler, WS_HOST, STT_PORT):
         log.info("WebSocket server listening on ws://%s:%d", WS_HOST, WS_PORT)
-        log.info("STT ingress listening on ws://%s:%d", WS_HOST, STT_PORT)
+        log.info("STT round-trip listening on ws://%s:%d (agent=%s)",
+                 WS_HOST, STT_PORT, HA_CONVERSATION_AGENT)
         if not AZURE_KEY or not AZURE_REGION:
             log.warning(
                 "azure_secrets.py not found or incomplete; TTS calls will "
